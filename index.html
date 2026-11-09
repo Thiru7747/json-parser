@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>JSON Studio — parse, explore, transform</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%238b5cf6'/%3E%3Ctext x='32' y='43' font-family='monospace' font-size='30' font-weight='700' fill='white' text-anchor='middle'%3E%7B%7D%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <!-- icon sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z"/><path d="M5 14l.7 1.8L7.5 16.5l-1.8.7L5 19l-.7-1.8L2.5 16.5l1.8-.7z"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></symbol>
+      <symbol id="i-wand" viewBox="0 0 24 24"><path d="M15 4V2M15 10V8M8 8h2M20 8h2M17.5 5.5L19 4M12.5 5.5L11 4M17.5 10.5L19 12"/><path d="M4 20l9-9"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 3h16"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.4-3 4"/><path d="M12 17h.01"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+      <symbol id="i-up" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+      <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+      <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+      <symbol id="i-command" viewBox="0 0 24 24"><path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></symbol>
+      <symbol id="i-code" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></symbol>
+      <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h6a3 3 0 0 0 3-3 6 6 0 0 0-9-6z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-braces" viewBox="0 0 24 24"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"><span>{</span><span>}</span></div>
+        <div class="brand-text">
+          <h1>JSON Studio</h1>
+          <p>parse · explore · transform</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="validity idle" id="validity">
+          <span class="pulse"></span>
+          <span id="validityText">Waiting for input</span>
+        </div>
+        <div class="privacy" title="Everything runs in your browser. Nothing is uploaded.">
+          <svg class="icon"><use href="#i-lock"/></svg>
+          <span>100% local</span>
+        </div>
+        <button class="icon-btn" id="themeBtn" title="Toggle theme (Ctrl+J)" aria-label="Toggle theme">
+          <svg class="icon moon"><use href="#i-moon"/></svg>
+          <svg class="icon sun"><use href="#i-sun"/></svg>
+        </button>
+        <button class="icon-btn" id="helpBtn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">
+          <svg class="icon"><use href="#i-help"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <nav class="toolbar" aria-label="JSON tools">
+      <div class="tool-group">
+        <button class="btn" id="openBtn" title="Open a JSON file (Ctrl+O)">
+          <svg class="icon"><use href="#i-folder"/></svg><span class="btn-label">Open</span>
+        </button>
+        <button class="btn" id="sampleBtn" title="Load sample data">
+          <svg class="icon"><use href="#i-sparkles"/></svg><span class="btn-label">Sample</span>
+        </button>
+        <button class="btn subtle" id="clearBtn" title="Clear editor">
+          <svg class="icon"><use href="#i-trash"/></svg><span class="btn-label">Clear</span>
+        </button>
+      </div>
+      <div class="tool-sep"></div>
+      <div class="tool-group">
+        <button class="btn primary" id="formatBtn" title="Format JSON (Ctrl+Enter)">
+          <svg class="icon"><use href="#i-wand"/></svg><span>Format</span><kbd id="formatKbd">⌘↵</kbd>
+        </button>
+        <button class="btn" id="minifyBtn" title="Minify JSON (Ctrl+M)"><span>Minify</span></button>
+        <button class="btn" id="sortBtn" title="Sort object keys recursively (Ctrl+Shift+S)"><span>Sort keys</span></button>
+        <button class="btn" id="copyBtn" title="Copy JSON (Alt+C)">
+          <svg class="icon"><use href="#i-copy"/></svg><span class="btn-label">Copy</span>
+        </button>
+        <button class="btn" id="downloadBtn" title="Download JSON (Ctrl+S)">
+          <svg class="icon"><use href="#i-download"/></svg><span class="btn-label">Download</span>
+        </button>
+      </div>
+      <div class="tool-spacer"></div>
+      <div class="tool-group tool-group-end">
+        <label class="select-wrap" title="Indentation used when formatting">
+          <span>Indent</span>
+          <select id="indentSelect">
+            <option value="2">2 spaces</option>
+            <option value="4">4 spaces</option>
+            <option value="tab">Tab</option>
+          </select>
+        </label>
+        <button class="chip-toggle" id="lenientToggle" title="Allow comments, trailing commas, single quotes and unquoted keys">
+          <span class="dot"></span><span>Lenient</span>
+        </button>
+        <button class="icon-btn palette-btn" id="paletteBtn" title="Command palette (Ctrl+K)">
+          <svg class="icon"><use href="#i-command"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <main class="workspace" id="workspace">
+      <section class="pane editor-pane">
+        <div class="pane-head">
+          <div class="file-meta">
+            <svg class="icon file-icon"><use href="#i-file"/></svg>
+            <span id="fileName">untitled.json</span>
+            <span class="edited-dot" id="fileEdited" hidden></span>
+          </div>
+          <div class="pane-head-right">
+            <span id="lineCount">1 line</span>
+            <span class="dot-sep"></span>
+            <span>UTF-8</span>
+          </div>
+        </div>
+
+        <div class="error-banner" id="errorBanner" hidden>
+          <svg class="icon"><use href="#i-alert"/></svg>
+          <div class="error-copy">
+            <strong id="errorTitle">Invalid JSON</strong>
+            <span id="errorMeta"></span>
+          </div>
+          <button class="btn small" id="revealError">Reveal</button>
+          <button class="icon-btn tiny" id="dismissError" aria-label="Dismiss">
+            <svg class="icon"><use href="#i-x"/></svg>
+          </button>
+        </div>
+
+        <div class="editor-body">
+          <div class="gutter" id="gutter" aria-hidden="true"><div id="gutterInner"></div></div>
+          <div class="code-wrap">
+            <div class="line-band active" id="activeBand"></div>
+            <div class="line-band error" id="errorBand"></div>
+            <pre class="highlight" id="highlightPre" aria-hidden="true"><code id="highlight"></code></pre>
+            <textarea id="editor" spellcheck="false" wrap="off" autocomplete="off" autocapitalize="off" autocorrect="off"
+              aria-label="JSON editor" placeholder="Paste JSON here, drop a file, or load the sample…"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize · double-click to reset">
+        <span></span>
+      </div>
+
+      <section class="pane inspector">
+        <div class="tabs" role="tablist" aria-label="Inspector">
+          <button class="tab active" data-tab="tree" role="tab" aria-selected="true">Tree</button>
+          <button class="tab" data-tab="stats" role="tab" aria-selected="false">Stats</button>
+          <button class="tab" data-tab="convert" role="tab" aria-selected="false">Convert</button>
+          <div class="tab-spacer"></div>
+          <span class="tab-hint" id="tabHint">click a node to inspect</span>
+        </div>
+
+        <div class="tab-panel active" id="panel-tree" role="tabpanel">
+          <div class="tree-toolbar">
+            <div class="search-box">
+              <svg class="icon"><use href="#i-search"/></svg>
+              <input id="treeSearch" placeholder="Search keys and values…" spellcheck="false" autocomplete="off" aria-label="Search JSON">
+              <span class="search-count" id="searchCount"></span>
+              <button class="mini-btn" id="searchPrev" title="Previous match (Shift+Enter)" aria-label="Previous match"><svg class="icon"><use href="#i-up"/></svg></button>
+              <button class="mini-btn" id="searchNext" title="Next match (Enter)" aria-label="Next match"><svg class="icon"><use href="#i-down"/></svg></button>
+              <button class="mini-btn" id="searchClear" title="Clear search" aria-label="Clear search" hidden><svg class="icon"><use href="#i-x"/></svg></button>
+            </div>
+            <div class="tree-actions">
+              <button class="mini-btn" id="expandAll" title="Expand all"><svg class="icon"><use href="#i-expand"/></svg></button>
+              <button class="mini-btn" id="collapseAll" title="Collapse all"><svg class="icon"><use href="#i-collapse"/></svg></button>
+            </div>
+          </div>
+          <div class="pathbar">
+            <span class="path-label">PATH</span>
+            <input id="pathInput" value="$" spellcheck="false" autocomplete="off" aria-label="JSON path">
+            <span class="type-badge" id="pathType">—</span>
+            <button class="mini-btn" id="copyPathBtn" title="Copy path" aria-label="Copy path"><svg class="icon"><use href="#i-link"/></svg></button>
+          </div>
+          <div class="tree-scroll" id="treeScroll">
+            <div class="tree" id="tree"></div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="panel-stats" role="tabpanel">
+          <div class="stats-scroll" id="statsContent"></div>
+        </div>
+
+        <div class="tab-panel" id="panel-convert" role="tabpanel">
+          <div class="convert-bar">
+            <label for="convertSelect">Convert to</label>
+            <select id="convertSelect">
+              <option value="typescript">TypeScript</option>
+              <option value="yaml">YAML</option>
+              <option value="csv">CSV</option>
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+            </select>
+            <div class="convert-actions">
+              <button class="btn small" id="copyConvert"><svg class="icon"><use href="#i-copy"/></svg>Copy</button>
+              <button class="btn small" id="downloadConvert"><svg class="icon"><use href="#i-download"/></svg>Download</button>
+            </div>
+          </div>
+          <pre class="convert-output" id="convertOutput"><code></code></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="statusbar">
+      <div class="status-group">
+        <span id="cursorPos">Ln 1, Col 1</span>
+        <span class="status-sep"></span>
+        <span id="charCount">0 chars</span>
+      </div>
+      <div class="status-group status-center">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="parseStatus">Ready</span>
+        <button class="warn-chip" id="warnChip" hidden>
+          <svg class="icon"><use href="#i-alert"/></svg>
+          <span id="warnChipText">0 warnings</span>
+        </button>
+      </div>
+      <div class="status-group status-right">
+        <span id="sizeStat">0 B</span>
+        <span id="nodeStat">0 nodes</span>
+        <span id="depthStat">depth 0</span>
+        <span id="timeStat">—</span>
+      </div>
+    </footer>
+  </div>
+
+  <input type="file" id="fileInput" accept=".json,.txt,application/json,text/plain" hidden>
+
+  <div class="drop-overlay" id="dropOverlay" hidden>
+    <div class="drop-card">
+      <svg class="icon"><use href="#i-upload"/></svg>
+      <h3>Drop your JSON file</h3>
+      <p>It stays in your browser — nothing is uploaded.</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span class="toast-icon" id="toastIcon"><svg class="icon"><use href="#i-check"/></svg></span>
+    <span id="toastText"></span>
+  </div>
+
+  <div class="modal-backdrop" id="shortcutsModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div class="modal-head">
+        <div>
+          <h2>Keyboard shortcuts</h2>
+          <p class="modal-sub">Work faster without touching the mouse.</p>
+        </div>
+        <button class="icon-btn" data-close aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="shortcut-grid">
+        <div class="shortcut"><span>Format JSON</span><span class="keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></span></div>
+        <div class="shortcut"><span>Minify JSON</span><span class="keys"><kbd>Ctrl</kbd><kbd>M</kbd></span></div>
+        <div class="shortcut"><span>Sort keys</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>S</kbd></span></div>
+        <div class="shortcut"><span>Command palette</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></div>
+        <div class="shortcut"><span>Search tree</span><span class="keys"><kbd>Ctrl</kbd><kbd>F</kbd></span></div>
+        <div class="shortcut"><span>Open file</span><span class="keys"><kbd>Ctrl</kbd><kbd>O</kbd></span></div>
+        <div class="shortcut"><span>Download JSON</span><span class="keys"><kbd>Ctrl</kbd><kbd>S</kbd></span></div>
+        <div class="shortcut"><span>Copy JSON</span><span class="keys"><kbd>Alt</kbd><kbd>C</kbd></span></div>
+        <div class="shortcut"><span>Toggle theme</span><span class="keys"><kbd>Ctrl</kbd><kbd>J</kbd></span></div>
+        <div class="shortcut"><span>Next / previous match</span><span class="keys"><kbd>Enter</kbd><kbd>Shift</kbd><kbd>Enter</kbd></span></div>
+        <div class="shortcut"><span>Indent / outdent line</span><span class="keys"><kbd>Tab</kbd><kbd>Shift</kbd><kbd>Tab</kbd></span></div>
+        <div class="shortcut"><span>Close dialog</span><span class="keys"><kbd>Esc</kbd></span></div>
+      </div>
+      <p class="modal-note">On macOS use <kbd>⌘</kbd> instead of <kbd>Ctrl</kbd>. The editor also supports native undo/redo.</p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="warningsModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Warnings">
+      <div class="modal-head">
+        <div>
+          <h2>Warnings</h2>
+          <p class="modal-sub">The JSON is valid, but these are worth a look.</p>
+        </div>
+        <button class="icon-btn" data-close aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="warnings-list" id="warningsList"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="paletteModal" hidden>
+    <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div class="palette-search">
+        <svg class="icon"><use href="#i-command"/></svg>
+        <input id="paletteInput" placeholder="Type a command…" spellcheck="false" autocomplete="off" aria-label="Command palette">
+        <kbd>Esc</kbd>
+      </div>
+      <div class="palette-list" id="paletteList"></div>
+      <div class="palette-foot">
+        <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+        <span><kbd>↵</kbd> run</span>
+        <span><kbd>Esc</kbd> close</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/parser.js"></script>
+  <script src="assets/convert.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
