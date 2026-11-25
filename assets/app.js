@@ -5,15 +5,23 @@
   'use strict';
 
   const J = window.JSONStudio;
+  const Pro = window.JSONStudioPro;
+  const Account = window.JSONStudioAccount;
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
   const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || '');
   const MOD = isMac ? '⌘' : 'Ctrl';
   const STORAGE_KEY = 'json-studio-v1';
+  const RECENT_KEY = 'json-studio-recent-v1';
   const LINE_HEIGHT = 22;
   const PAD_TOP = 14;
   const PAGE_SIZE = 300;
+  const PRO_FORMATS = ['csv', 'python', 'javascript', 'schema', 'mock'];
+  const FORMAT_LABELS = {
+    typescript: 'TypeScript', yaml: 'YAML', csv: 'CSV', python: 'Python',
+    javascript: 'JavaScript', schema: 'JSON Schema', mock: 'Mock data'
+  };
 
   /* ------------------------------------------------------------
      Sample data
@@ -140,6 +148,8 @@
     helpBtn: $('#helpBtn'),
     openBtn: $('#openBtn'),
     sampleBtn: $('#sampleBtn'),
+    recentBtn: $('#recentBtn'),
+    recentProDot: $('#recentProDot'),
     clearBtn: $('#clearBtn'),
     formatBtn: $('#formatBtn'),
     minifyBtn: $('#minifyBtn'),
@@ -168,6 +178,14 @@
     convertOutput: $('#convertOutput'),
     copyConvert: $('#copyConvert'),
     downloadConvert: $('#downloadConvert'),
+    queryInput: $('#queryInput'),
+    queryRun: $('#queryRun'),
+    queryResults: $('#queryResults'),
+    queryMeta: $('#queryMeta'),
+    queryGate: $('#queryGate'),
+    queryUpgrade: $('#queryUpgrade'),
+    queryPreview: $('#queryPreview'),
+    queryExamples: $('#queryExamples'),
     tabHint: $('#tabHint'),
     cursorPos: $('#cursorPos'),
     charCount: $('#charCount'),
@@ -187,6 +205,10 @@
     shortcutsModal: $('#shortcutsModal'),
     warningsModal: $('#warningsModal'),
     warningsList: $('#warningsList'),
+    recentModal: $('#recentModal'),
+    recentList: $('#recentList'),
+    recentFoot: $('#recentFoot'),
+    recentPlanTag: $('#recentPlanTag'),
     paletteModal: $('#paletteModal'),
     paletteInput: $('#paletteInput'),
     paletteList: $('#paletteList'),
@@ -247,6 +269,191 @@
       fallbackCopy(text);
       done();
     }
+  }
+
+  /* ------------------------------------------------------------
+     Plans & recent documents
+     ------------------------------------------------------------ */
+
+  function isPro() {
+    return !!(Account && Account.isPro());
+  }
+
+  function isLockedFormat(format) {
+    return PRO_FORMATS.indexOf(format) !== -1 && !isPro();
+  }
+
+  function updatePlanUI() {
+    const pro = isPro();
+    if (el.recentProDot) el.recentProDot.hidden = pro;
+
+    const proOptions = $$('#convertSelect option[data-pro]');
+    for (const option of proOptions) {
+      if (!option.dataset.base) option.dataset.base = option.textContent.trim();
+      option.disabled = !pro;
+      option.textContent = option.dataset.base + (pro ? '' : ' · Pro');
+    }
+
+    const queryTab = $('.tab[data-tab="query"]');
+    if (queryTab) queryTab.classList.toggle('locked', !pro);
+
+    if (!pro && isLockedFormat(state.convertFormat)) {
+      state.convertFormat = 'typescript';
+      el.convertSelect.value = 'typescript';
+      state.convertDirty = true;
+    }
+
+    if (state.activeTab === 'convert') renderConvert();
+    if (state.activeTab === 'query') {
+      if (pro) runQuery();
+      else renderQueryGate();
+    }
+    if (el.recentModal && !el.recentModal.hidden) renderRecent();
+  }
+
+  function loadRecent() {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list)) return [];
+      return list.filter(function (item) {
+        return item && typeof item.text === 'string' && typeof item.name === 'string';
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveRecent(list) {
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+    } catch (err) {
+      try {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 4)));
+      } catch (e) { /* give up quietly */ }
+    }
+  }
+
+  let recentTimer = 0;
+  function scheduleRecordRecent() {
+    clearTimeout(recentTimer);
+    recentTimer = setTimeout(recordRecent, 1600);
+  }
+
+  function recordRecent() {
+    const text = state.text;
+    if (!text.trim() || text.length > 120000) return;
+    const list = loadRecent();
+    const existing = list.findIndex(function (item) {
+      return item.text === text && item.name === state.fileName;
+    });
+    if (existing === 0) {
+      list[0].at = Date.now();
+      saveRecent(list);
+      return;
+    }
+    if (existing > 0) list.splice(existing, 1);
+    list.unshift({
+      id: 'rec_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name: state.fileName,
+      at: Date.now(),
+      size: J.byteLength(text),
+      text: text
+    });
+    const max = (Account && Account.maxHistoryStored) ? Account.maxHistoryStored() : 25;
+    while (list.length > max) list.pop();
+    saveRecent(list);
+    if (el.recentModal && !el.recentModal.hidden) renderRecent();
+  }
+
+  function formatWhen(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + ' min ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + ' hr ago';
+    if (diff < 7 * 86400000) return Math.floor(diff / 86400000) + 'd ago';
+    return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function renderRecent() {
+    if (!el.recentList || !el.recentFoot) return;
+    const all = loadRecent();
+    const pro = isPro();
+    const limit = pro ? all.length : (Account ? Account.historyLimit() : 3);
+    el.recentPlanTag.textContent = pro ? 'PRO · FULL HISTORY' : 'FREE · 3 SAVED';
+    el.recentPlanTag.className = 'pro-tag' + (pro ? '' : ' free');
+
+    if (!all.length) {
+      el.recentList.innerHTML = '<div class="recent-empty">' +
+        '<div class="empty-icon"><svg class="icon" style="width:26px;height:26px"><use href="#i-history"/></svg></div>' +
+        '<h3>Nothing here yet</h3><p>Documents you open or edit will show up here for quick restore.</p>' +
+        '<button class="btn small primary" data-recent-sample><svg class="icon"><use href="#i-sparkles"/></svg>Load the sample</button></div>';
+      el.recentFoot.innerHTML = '<span>History is stored locally in this browser.</span>';
+      return;
+    }
+
+    const visible = pro ? all : all.slice(0, limit);
+    let html = '';
+    for (const item of visible) {
+      html += '<div class="recent-row">' +
+        '<button class="recent-open" data-recent-open="' + J.escapeHTML(item.id) + '">' +
+          '<span class="recent-icon"><svg class="icon"><use href="#i-file"/></svg></span>' +
+          '<span class="recent-main"><strong>' + J.escapeHTML(item.name) + '</strong>' +
+          '<span>' + formatBytes(item.size) + ' · ' + formatWhen(item.at) + ' · ' + item.text.length.toLocaleString() + ' chars</span></span>' +
+          '<span class="recent-restore">Restore<svg class="icon"><use href="#i-chevron"/></svg></span>' +
+        '</button>' +
+        '<button class="mini-btn recent-del" data-recent-del="' + J.escapeHTML(item.id) + '" title="Remove from history" aria-label="Remove from history"><svg class="icon"><use href="#i-trash"/></svg></button>' +
+      '</div>';
+    }
+
+    if (!pro && all.length > limit) {
+      html += '<button class="recent-locked" data-recent-upgrade>' +
+        '<span class="gate-icon small"><svg class="icon"><use href="#i-lock"/></svg></span>' +
+        '<span><strong>' + (all.length - limit) + ' more document' + (all.length - limit === 1 ? '' : 's') + '</strong>' +
+        '<span>Pro keeps your full 25-document history.</span></span>' +
+        '<span class="pro-tag">PRO</span></button>';
+    }
+
+    el.recentList.innerHTML = html;
+    el.recentFoot.innerHTML =
+      '<span>' + visible.length + ' of ' + all.length + ' saved · ' + (pro ? 'full history' : 'Free keeps the latest 3') + '</span>' +
+      '<span class="recent-foot-actions">' +
+        (pro ? '' : '<button class="btn small" data-recent-upgrade><svg class="icon"><use href="#i-crown"/></svg>Upgrade</button>') +
+        '<button class="btn small subtle" data-recent-clear>Clear history</button>' +
+      '</span>';
+  }
+
+  function openRecent() {
+    renderRecent();
+    openModal(el.recentModal);
+  }
+
+  function restoreRecent(id) {
+    const all = loadRecent();
+    const index = all.findIndex(function (item) { return item.id === id; });
+    if (index === -1) { toast('That document is no longer in history', 'warn'); renderRecent(); return; }
+    const limit = Account ? Account.historyLimit() : 3;
+    if (!isPro() && index >= limit) {
+      Account.requirePro('Full document history');
+      return;
+    }
+    const item = all[index];
+    closeModals();
+    setDocument(item.text, item.name);
+    toast('Restored ' + item.name);
+  }
+
+  function deleteRecent(id) {
+    const list = loadRecent().filter(function (item) { return item.id !== id; });
+    saveRecent(list);
+    renderRecent();
+    toast('Removed from history');
+  }
+
+  function clearRecent() {
+    try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* ignore */ }
+    renderRecent();
+    toast('History cleared');
   }
 
   /* ------------------------------------------------------------
@@ -347,8 +554,14 @@
 
   function readFile(file) {
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) {
-      toast('That file is larger than 20 MB', 'warn');
+    const limit = Account ? Account.maxDocBytes() : 20 * 1024 * 1024;
+    if (file.size > limit) {
+      if (!isPro()) {
+        toast('Free supports files up to 1 MB — Pro raises the limit to 25 MB', 'warn');
+        Account.openPricing('Larger documents');
+      } else {
+        toast('That file is larger than 25 MB', 'warn');
+      }
       return;
     }
     const reader = new FileReader();
@@ -534,12 +747,15 @@
       renderTree();
       if (state.activeTab === 'stats') renderStats(); else state.statsDirty = true;
       if (state.activeTab === 'convert') renderConvert(); else state.convertDirty = true;
+      if (state.activeTab === 'query') runQuery();
+      scheduleRecordRecent();
     } else {
       state.searchMatches = [];
       state.searchIndex = -1;
       if (state.activeTab === 'tree') renderTree();
       if (state.activeTab === 'stats') renderStats();
       if (state.activeTab === 'convert') renderConvert();
+      if (state.activeTab === 'query') runQuery();
     }
 
     updateStatus();
@@ -1423,13 +1639,41 @@
     if (src.length > 250000) return J.escapeHTML(src);
     if (format === 'typescript') return highlightTypeScript(src);
     if (format === 'yaml' || format === 'python') return highlightKeyed(src);
-    if (format === 'javascript') return highlightWords(src);
+    if (format === 'javascript' || format === 'schema' || format === 'mock') return highlightWords(src);
     return J.escapeHTML(src);
+  }
+
+  function convertGateHTML() {
+    const label = FORMAT_LABELS[state.convertFormat] || 'This converter';
+    return '<div class="pro-gate convert-gate">' +
+      '<div class="gate-icon"><svg class="icon"><use href="#i-lock"/></svg></div>' +
+      '<span class="pro-tag">PRO CONVERTER</span>' +
+      '<h3>' + J.escapeHTML(label) + ' is part of Pro</h3>' +
+      '<p>Unlock this converter, plus the query studio, JSON Schema, mock data and bigger documents.</p>' +
+      '<button class="btn primary" data-convert-upgrade><svg class="icon"><use href="#i-crown"/></svg>Unlock with Pro</button>' +
+      '<p class="gate-note">Free includes TypeScript and YAML.</p>' +
+    '</div>';
+  }
+
+  function showConvertGate() {
+    state.convertText = '';
+    el.convertOutput.innerHTML = convertGateHTML();
+    el.copyConvert.disabled = true;
+    el.downloadConvert.disabled = true;
+    const btn = el.convertOutput.querySelector('[data-convert-upgrade]');
+    if (btn) btn.addEventListener('click', function () { Account.openPricing('The ' + (FORMAT_LABELS[state.convertFormat] || '') + ' converter'); });
   }
 
   function renderConvert() {
     state.convertDirty = false;
     const p = state.parse;
+
+    if (isLockedFormat(state.convertFormat)) {
+      showConvertGate();
+      return;
+    }
+    el.copyConvert.disabled = false;
+    el.downloadConvert.disabled = false;
 
     if (!p || p.empty) {
       state.convertText = '';
@@ -1449,6 +1693,8 @@
       else if (state.convertFormat === 'csv') out = J.toCSV(p.value);
       else if (state.convertFormat === 'python') out = J.toPython(p.value);
       else if (state.convertFormat === 'javascript') out = J.toJavaScript(p.ast);
+      else if (state.convertFormat === 'schema') out = Pro.toSchema(p.value, 'GeneratedSchema');
+      else if (state.convertFormat === 'mock') out = Pro.mockJSON(p.ast, 6);
     } catch (err) {
       out = '// Conversion failed: ' + (err && err.message ? err.message : String(err));
     }
@@ -1459,6 +1705,109 @@
       return;
     }
     el.convertOutput.innerHTML = '<code>' + highlightConvert(out, state.convertFormat) + '</code>';
+  }
+
+  /* ------------------------------------------------------------
+     Query studio (Pro)
+     ------------------------------------------------------------ */
+
+  function queryGateHTML() {
+    return '<div class="pro-gate query-gate-inner">' +
+      '<div class="gate-icon"><svg class="icon"><use href="#i-lock"/></svg></div>' +
+      '<span class="pro-tag">PRO</span>' +
+      '<h3>Query studio is a Pro feature</h3>' +
+      '<p>Filter, slice and traverse the document with JSONPath-lite. Click any result to jump to it in the tree.</p>' +
+      '<button class="btn primary" id="queryUpgrade"><svg class="icon"><use href="#i-crown"/></svg>Unlock with Pro</button>' +
+    '</div>';
+  }
+
+  function renderQueryGate() {
+    el.queryGate.hidden = false;
+    el.queryGate.innerHTML = queryGateHTML();
+    el.queryResults.innerHTML = '';
+    el.queryMeta.textContent = 'JSONPath-lite query studio';
+    el.queryInput.disabled = true;
+    el.queryRun.disabled = true;
+    el.queryExamples.classList.add('disabled');
+    const btn = el.queryGate.querySelector('#queryUpgrade');
+    if (btn) btn.addEventListener('click', function () { Account.openPricing('The query studio'); });
+  }
+
+  function queryPreviewHTML(node) {
+    if (node.type === 'object') {
+      if (!node.children.length) return '{}';
+      const keys = node.children.slice(0, 3).map(function (c) { return String(c.key); }).join(', ');
+      return '{ ' + keys + (node.children.length > 3 ? ', …' : '') + ' }';
+    }
+    if (node.type === 'array') {
+      return '[' + node.children.length + ' item' + (node.children.length === 1 ? '' : 's') + ']';
+    }
+    return previewText(node);
+  }
+
+  function runQuery() {
+    if (!isPro()) { renderQueryGate(); return; }
+    el.queryGate.hidden = true;
+    el.queryInput.disabled = false;
+    el.queryRun.disabled = false;
+    el.queryExamples.classList.remove('disabled');
+
+    const p = state.parse;
+    if (!p || p.empty || !p.ok) {
+      el.queryResults.innerHTML = '<div class="query-empty">' +
+        '<svg class="icon"><use href="#i-search"/></svg>' +
+        '<p>' + (!p || p.empty ? 'Load some JSON to query it.' : 'Fix the JSON in the editor to run queries.') + '</p></div>';
+      el.queryMeta.textContent = 'Waiting for valid JSON';
+      return;
+    }
+
+    const started = performance.now();
+    const result = Pro.query(p.ast, el.queryInput.value);
+    const ms = performance.now() - started;
+
+    if (!result.ok) {
+      el.queryMeta.innerHTML = '<span class="query-error"><svg class="icon"><use href="#i-alert"/></svg>' + J.escapeHTML(result.error) + '</span>';
+      el.queryResults.innerHTML = '<div class="query-empty"><p>Check the syntax and try again.</p></div>';
+      return;
+    }
+
+    const count = result.matches.length;
+    el.queryMeta.innerHTML = '<strong>' + count + '</strong> match' + (count === 1 ? '' : 'es') +
+      ' · ' + ms.toFixed(2) + ' ms' + (result.truncated ? ' · showing the first ' + count : '');
+
+    if (!count) {
+      el.queryResults.innerHTML = '<div class="query-empty">' +
+        '<svg class="icon"><use href="#i-search"/></svg><p>No matches. Try <code>$..name</code> or a wildcard.</p></div>';
+      return;
+    }
+
+    el.queryResults.innerHTML = result.matches.map(function (item) {
+      return '<button class="query-row" data-query-path="' + J.escapeHTML(item.path) + '">' +
+        '<span class="qr-path">' + J.escapeHTML(item.path) + '</span>' +
+        '<span class="type-badge" data-type="' + item.node.type + '">' + item.node.type + '</span>' +
+        '<span class="qr-preview">' + J.escapeHTML(queryPreviewHTML(item.node)) + '</span>' +
+        '<svg class="icon qr-go"><use href="#i-chevron"/></svg>' +
+      '</button>';
+    }).join('');
+  }
+
+  function jumpToQueryPath(path) {
+    ensureVisible(path);
+    renderTree();
+    selectPath(path, true);
+    switchTab('tree');
+  }
+
+  function chooseConvert(format) {
+    if (isLockedFormat(format)) {
+      Account.requirePro('The ' + (FORMAT_LABELS[format] || '') + ' converter');
+      return false;
+    }
+    state.convertFormat = format;
+    el.convertSelect.value = format;
+    state.convertDirty = true;
+    switchTab('convert');
+    return true;
   }
 
   /* ------------------------------------------------------------
@@ -1566,6 +1915,10 @@
   }
 
   function doConvertCopy() {
+    if (isLockedFormat(state.convertFormat)) {
+      Account.requirePro('The ' + (FORMAT_LABELS[state.convertFormat] || '') + ' converter');
+      return;
+    }
     if (!state.convertText) {
       toast('Nothing to copy yet', 'warn');
       return;
@@ -1574,11 +1927,15 @@
   }
 
   function doConvertDownload() {
+    if (isLockedFormat(state.convertFormat)) {
+      Account.requirePro('The ' + (FORMAT_LABELS[state.convertFormat] || '') + ' converter');
+      return;
+    }
     if (!state.convertText) {
       toast('Nothing to download yet', 'warn');
       return;
     }
-    const extMap = { typescript: 'ts', yaml: 'yaml', csv: 'csv', python: 'py', javascript: 'js' };
+    const extMap = { typescript: 'ts', yaml: 'yaml', csv: 'csv', python: 'py', javascript: 'js', schema: 'schema.json', mock: 'mock.json' };
     const ext = extMap[state.convertFormat] || 'txt';
     const base = String(state.fileName || 'data.json').replace(/\.[^./\\]+$/, '') || 'data';
     const name = base + '.' + ext;
@@ -1616,6 +1973,7 @@
     }
     if (name === 'stats' && state.statsDirty) renderStats();
     if (name === 'convert' && state.convertDirty) renderConvert();
+    if (name === 'query') { if (isPro()) runQuery(); else renderQueryGate(); }
     saveStateSoon();
   }
 
@@ -1694,11 +2052,16 @@
       { label: 'Search the tree', hint: MOD + ' F', icon: 'i-search', keywords: 'find filter', run: function () { switchTab('tree'); el.treeSearch.focus(); el.treeSearch.select(); } },
       { label: 'Open statistics', icon: 'i-braces', keywords: 'size depth count analysis', run: function () { switchTab('stats'); } },
       { label: 'Open converters', icon: 'i-code', keywords: 'typescript yaml csv python javascript', run: function () { switchTab('convert'); } },
-      { label: 'Convert to TypeScript', icon: 'i-code', keywords: 'interface type', run: function () { state.convertFormat = 'typescript'; el.convertSelect.value = 'typescript'; switchTab('convert'); } },
-      { label: 'Convert to YAML', icon: 'i-code', keywords: 'yml', run: function () { state.convertFormat = 'yaml'; el.convertSelect.value = 'yaml'; switchTab('convert'); } },
-      { label: 'Convert to CSV', icon: 'i-code', keywords: 'table spreadsheet', run: function () { state.convertFormat = 'csv'; el.convertSelect.value = 'csv'; switchTab('convert'); } },
-      { label: 'Convert to Python', icon: 'i-code', keywords: 'dict literal', run: function () { state.convertFormat = 'python'; el.convertSelect.value = 'python'; switchTab('convert'); } },
-      { label: 'Convert to JavaScript', icon: 'i-code', keywords: 'module export', run: function () { state.convertFormat = 'javascript'; el.convertSelect.value = 'javascript'; switchTab('convert'); } },
+      { label: 'Query studio', icon: 'i-search', hint: 'Pro', badge: 'PRO', keywords: 'jsonpath filter slice query pro', run: function () { switchTab('query'); } },
+      { label: 'Convert to TypeScript', icon: 'i-code', keywords: 'interface type', run: function () { chooseConvert('typescript'); } },
+      { label: 'Convert to YAML', icon: 'i-code', keywords: 'yml', run: function () { chooseConvert('yaml'); } },
+      { label: 'Convert to CSV', icon: 'i-code', hint: 'Pro', badge: 'PRO', keywords: 'table spreadsheet pro', run: function () { chooseConvert('csv'); } },
+      { label: 'Convert to Python', icon: 'i-code', hint: 'Pro', badge: 'PRO', keywords: 'dict literal pro', run: function () { chooseConvert('python'); } },
+      { label: 'Convert to JavaScript', icon: 'i-code', hint: 'Pro', badge: 'PRO', keywords: 'module export pro', run: function () { chooseConvert('javascript'); } },
+      { label: 'Generate JSON Schema', icon: 'i-code', hint: 'Pro', badge: 'PRO', keywords: 'schema validation contract pro', run: function () { chooseConvert('schema'); } },
+      { label: 'Generate mock data', icon: 'i-sparkles', hint: 'Pro', badge: 'PRO', keywords: 'fake seed fixtures pro', run: function () { chooseConvert('mock'); } },
+      { label: 'Recent documents', icon: 'i-history', keywords: 'history restore recent', run: openRecent },
+      { label: isPro() ? 'Manage billing' : 'Upgrade to Pro', icon: isPro() ? 'i-card' : 'i-crown', keywords: 'plan price payment subscription billing', run: function () { if (isPro()) Account.openBilling(); else Account.openPricing(); } },
       { label: 'Show warnings', icon: 'i-alert', keywords: 'issues duplicates', run: openWarnings, disabled: !(p && p.ok && p.warnings.length) },
       { label: 'Keyboard shortcuts', icon: 'i-help', keywords: 'keys help', run: function () { openModal(el.shortcutsModal); } },
       { label: 'Reset split view', icon: 'i-collapse', keywords: 'layout resize', run: function () { setSplit(0.5, true); } }
@@ -1721,6 +2084,7 @@
       return '<button class="palette-item' + (i === paletteActive ? ' active' : '') + '" data-index="' + i + '">' +
         '<svg class="icon"><use href="#' + cmd.icon + '"/></svg>' +
         '<span class="pi-label">' + J.escapeHTML(cmd.label) + '</span>' +
+        (cmd.badge ? '<span class="pi-badge pro">' + J.escapeHTML(cmd.badge) + '</span>' : '') +
         (cmd.hint ? '<span class="pi-hint">' + J.escapeHTML(cmd.hint) + '</span>' : '') +
         '</button>';
     }).join('');
@@ -1866,6 +2230,11 @@
       doFormat();
       return;
     }
+    if (mod && e.shiftKey && key === 'q') {
+      e.preventDefault();
+      switchTab('query');
+      return;
+    }
     if (mod && e.shiftKey && key === 's') {
       e.preventDefault();
       doSort();
@@ -1914,6 +2283,39 @@
     el.editor.addEventListener('keydown', handleEditorKeydown);
     el.editor.addEventListener('click', updateCursor);
     el.editor.addEventListener('keyup', updateCursor);
+
+    el.recentBtn.addEventListener('click', openRecent);
+    el.recentList.addEventListener('click', function (e) {
+      const open = e.target.closest('[data-recent-open]');
+      if (open) { restoreRecent(open.dataset.recentOpen); return; }
+      const del = e.target.closest('[data-recent-del]');
+      if (del) { deleteRecent(del.dataset.recentDel); return; }
+      if (e.target.closest('[data-recent-upgrade]')) { Account.openPricing('Full document history'); return; }
+      if (e.target.closest('[data-recent-sample]')) { closeModals(); loadSample(); }
+    });
+    el.recentFoot.addEventListener('click', function (e) {
+      if (e.target.closest('[data-recent-upgrade]')) { Account.openPricing('Full document history'); return; }
+      if (e.target.closest('[data-recent-clear]')) clearRecent();
+    });
+    document.addEventListener('jsonstudio:open-recent', openRecent);
+
+    el.queryRun.addEventListener('click', runQuery);
+    el.queryInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); runQuery(); }
+    });
+    el.queryExamples.addEventListener('click', function (e) {
+      const chip = e.target.closest('[data-query]');
+      if (!chip) return;
+      if (!isPro()) { Account.openPricing('The query studio'); return; }
+      el.queryInput.value = chip.dataset.query;
+      switchTab('query');
+      runQuery();
+    });
+    el.queryResults.addEventListener('click', function (e) {
+      const row = e.target.closest('[data-query-path]');
+      if (row) jumpToQueryPath(row.dataset.queryPath);
+    });
+
     document.addEventListener('selectionchange', function () {
       if (document.activeElement === el.editor) updateCursor();
     });
@@ -2121,8 +2523,8 @@
       if (saved.indent === '2' || saved.indent === '4' || saved.indent === 'tab') state.indent = saved.indent;
       if (typeof saved.lenient === 'boolean') state.lenient = saved.lenient;
       if (typeof saved.split === 'number') state.split = clamp(saved.split, 0.28, 0.72);
-      if (['tree', 'stats', 'convert'].indexOf(saved.tab) !== -1) state.activeTab = saved.tab;
-      if (['typescript', 'yaml', 'csv', 'python', 'javascript'].indexOf(saved.format) !== -1) state.convertFormat = saved.format;
+      if (['tree', 'stats', 'convert', 'query'].indexOf(saved.tab) !== -1) state.activeTab = saved.tab;
+      if (['typescript', 'yaml', 'csv', 'python', 'javascript', 'schema', 'mock'].indexOf(saved.format) !== -1) state.convertFormat = saved.format;
       if (saved.hasText && typeof saved.text === 'string') {
         initialText = saved.text;
         initialName = saved.fileName || 'untitled.json';
@@ -2138,6 +2540,11 @@
     el.indentSelect.value = state.indent;
     el.lenientToggle.classList.toggle('on', state.lenient);
     el.lenientToggle.setAttribute('aria-pressed', String(state.lenient));
+    if (Account) {
+      Account.setNotify(toast);
+      Account.onChange(function () { updatePlanUI(); });
+    }
+    updatePlanUI();
     el.convertSelect.value = state.convertFormat;
     setSplit(state.split, false);
     bindEvents();
@@ -2194,7 +2601,13 @@
 
   /* convert */
   el.convertSelect.addEventListener('change', function () {
-    state.convertFormat = el.convertSelect.value;
+    const format = el.convertSelect.value;
+    if (isLockedFormat(format)) {
+      el.convertSelect.value = state.convertFormat;
+      Account.requirePro('The ' + (FORMAT_LABELS[format] || '') + ' converter');
+      return;
+    }
+    state.convertFormat = format;
     renderConvert();
     saveStateSoon();
   });

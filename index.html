@@ -39,6 +39,15 @@
       <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h6a3 3 0 0 0 3-3 6 6 0 0 0-9-6z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/></symbol>
       <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
       <symbol id="i-braces" viewBox="0 0 24 24"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+      <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 7l4 4 5-7 5 7 4-4-2 12H5z"/><path d="M5 22h14"/></symbol>
+      <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/><path d="M6 15h4"/></symbol>
+      <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v5l3 2"/></symbol>
+      <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.4 8-8 9-4.6-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></symbol>
     </defs>
   </svg>
 
@@ -60,6 +69,7 @@
           <svg class="icon"><use href="#i-lock"/></svg>
           <span>100% local</span>
         </div>
+        <div class="account-slot" id="accountSlot"></div>
         <button class="icon-btn" id="themeBtn" title="Toggle theme (Ctrl+J)" aria-label="Toggle theme">
           <svg class="icon moon"><use href="#i-moon"/></svg>
           <svg class="icon sun"><use href="#i-sun"/></svg>
@@ -77,6 +87,10 @@
         </button>
         <button class="btn" id="sampleBtn" title="Load sample data">
           <svg class="icon"><use href="#i-sparkles"/></svg><span class="btn-label">Sample</span>
+        </button>
+        <button class="btn" id="recentBtn" title="Recent documents">
+          <svg class="icon"><use href="#i-history"/></svg><span class="btn-label">Recent</span>
+          <span class="pro-dot" id="recentProDot" title="Pro keeps 25 recent documents">PRO</span>
         </button>
         <button class="btn subtle" id="clearBtn" title="Clear editor">
           <svg class="icon"><use href="#i-trash"/></svg><span class="btn-label">Clear</span>
@@ -163,6 +177,7 @@
           <button class="tab active" data-tab="tree" role="tab" aria-selected="true">Tree</button>
           <button class="tab" data-tab="stats" role="tab" aria-selected="false">Stats</button>
           <button class="tab" data-tab="convert" role="tab" aria-selected="false">Convert</button>
+          <button class="tab" data-tab="query" role="tab" aria-selected="false">Query <span class="pro-tag">PRO</span></button>
           <div class="tab-spacer"></div>
           <span class="tab-hint" id="tabHint">click a node to inspect</span>
         </div>
@@ -203,9 +218,11 @@
             <select id="convertSelect">
               <option value="typescript">TypeScript</option>
               <option value="yaml">YAML</option>
-              <option value="csv">CSV</option>
-              <option value="python">Python</option>
-              <option value="javascript">JavaScript</option>
+              <option value="csv" data-pro="true">CSV</option>
+              <option value="python" data-pro="true">Python</option>
+              <option value="javascript" data-pro="true">JavaScript</option>
+              <option value="schema" data-pro="true">JSON Schema</option>
+              <option value="mock" data-pro="true">Mock data</option>
             </select>
             <div class="convert-actions">
               <button class="btn small" id="copyConvert"><svg class="icon"><use href="#i-copy"/></svg>Copy</button>
@@ -213,6 +230,39 @@
             </div>
           </div>
           <pre class="convert-output" id="convertOutput"><code></code></pre>
+        </div>
+
+        <div class="tab-panel" id="panel-query" role="tabpanel">
+          <div class="query-wrap">
+            <div class="query-bar">
+              <div class="query-input-wrap">
+                <span class="query-sigil">$</span>
+                <input id="queryInput" value="$.users[*].name" spellcheck="false" autocomplete="off" aria-label="JSONPath query">
+              </div>
+              <button class="btn primary small" id="queryRun">
+                <svg class="icon"><use href="#i-spark"/></svg>Run
+              </button>
+            </div>
+            <div class="query-examples" id="queryExamples">
+              <button data-query="$.users[*].name">all user names</button>
+              <button data-query="$..email">every email</button>
+              <button data-query="$.users[?(@.active == true)].name">active users</button>
+              <button data-query="$.users[?(@.id >= 2)].email">id ≥ 2</button>
+              <button data-query="$.metrics.weeklyActive[1:4]">slice</button>
+            </div>
+            <div class="query-headline">
+              <span id="queryMeta">Run a query against the current document</span>
+              <span class="query-path-hint">JSONPath-lite · <kbd>Enter</kbd></span>
+            </div>
+            <div class="query-results" id="queryResults"></div>
+            <div class="query-gate" id="queryGate" hidden>
+              <div class="gate-icon"><svg class="icon"><use href="#i-lock"/></svg></div>
+              <h3>Query studio is a Pro feature</h3>
+              <p>Filter, slice and traverse JSON with JSONPath-lite. Results link straight back to the tree.</p>
+              <button class="btn primary" id="queryUpgrade"><svg class="icon"><use href="#i-crown"/></svg>Unlock with Pro</button>
+              <button class="btn small" id="queryPreview">See example query</button>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -269,6 +319,7 @@
         <div class="shortcut"><span>Minify JSON</span><span class="keys"><kbd>Ctrl</kbd><kbd>M</kbd></span></div>
         <div class="shortcut"><span>Sort keys</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>S</kbd></span></div>
         <div class="shortcut"><span>Command palette</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></div>
+        <div class="shortcut"><span>Query studio (Pro)</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Q</kbd></span></div>
         <div class="shortcut"><span>Search tree</span><span class="keys"><kbd>Ctrl</kbd><kbd>F</kbd></span></div>
         <div class="shortcut"><span>Open file</span><span class="keys"><kbd>Ctrl</kbd><kbd>O</kbd></span></div>
         <div class="shortcut"><span>Download JSON</span><span class="keys"><kbd>Ctrl</kbd><kbd>S</kbd></span></div>
@@ -295,6 +346,20 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="recentModal" hidden>
+    <div class="modal recent-modal" role="dialog" aria-modal="true" aria-label="Recent documents">
+      <div class="modal-head">
+        <div>
+          <h2>Recent documents</h2>
+          <p class="modal-sub">Stored locally for quick restore. <span class="pro-tag" id="recentPlanTag">PRO</span></p>
+        </div>
+        <button class="icon-btn" data-close aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="recent-list" id="recentList"></div>
+      <div class="recent-foot" id="recentFoot"></div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="paletteModal" hidden>
     <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
       <div class="palette-search">
@@ -313,6 +378,8 @@
 
   <script src="assets/parser.js"></script>
   <script src="assets/convert.js"></script>
+  <script src="assets/pro.js"></script>
+  <script src="assets/account.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>
